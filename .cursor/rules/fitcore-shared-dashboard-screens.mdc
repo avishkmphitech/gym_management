@@ -1,0 +1,50 @@
+---
+description: FitCore web dashboard — shared screens for Gym Owner and Super Admin; split only for admin-only access
+globs: apps/fitcore_gym_owner/**/*.{tsx,ts}
+alwaysApply: false
+---
+
+# FitCore: shared Gym Owner + Super Admin screens
+
+The web app (`apps/fitcore_gym_owner`) serves **Gym Owner** and **Super Admin** from one codebase. Prefer **one screen per feature** that both roles can use; **only** add a separate route or page when **gym owners must not have access** (true super-admin-only capabilities).
+
+## Rules
+
+1. **Default: shared page components**  
+   Implement surfaces both roles need under `src/app/(dashboard)/…` and `src/components/…` once. Drive differences with **RBAC / role** (e.g. `role === "super_admin"` from session or shell context), optional props like `canImpersonate`, or feature flags—not a second copy of the whole page.
+
+2. **Super-admin-only = separate route (and guard)**  
+   Features gym owners never see (e.g. cross-tenant gym directory, platform billing, system controls) live on **dedicated routes** with **nav + server/middleware checks** so owners cannot open them. That is the **only** case where a wholly different screen tree is appropriate.
+
+3. **Navigation vs content**  
+   `DashboardShell` (or equivalent) may show **different nav items** per role, but **overlapping destinations** should render the **same** page module, optionally branching on permissions inside.
+
+4. **New work**  
+   When adding UI: ask “can gym owner see this?” If **yes** → shared screen + permission branches. If **no** → super-admin route only, no duplicate “owner version” of the same layout.
+
+## Anti-patterns
+
+- Duplicating a dashboard or list page as `SuperAdminFoo` and `GymOwnerFoo` when the layout differs only by columns, actions, or copy.
+- Putting super-admin-only actions on a shared URL without enforcing **deny by default** for `gym_owner`.
+
+## Good pattern
+
+```tsx
+// Shared page; hide or swap actions by role / permissions.
+export default function RevenuePage() {
+  const role = useDashboardRole(); // gym_owner | super_admin (from auth when wired)
+  const showCrossTenant = role === "super_admin";
+  return (
+    <div>
+      <RevenueSummary scope={showCrossTenant ? "platform" : "gym"} />
+    </div>
+  );
+}
+```
+
+## Reference (current prototype nav)
+
+- **Gym owner–oriented routes** (examples): `/`, `/members`, `/trainers`, `/reception`, `/revenue`, `/settings`.
+- **Super admin–only style routes** (examples): `/gyms`, `/billing`, `/analytics`, `/system` — keep these **non-duplicative** vs owner pages; do not rebuild owner equivalents unless product requires a **different** IA.
+
+When auth replaces the shell toggle, **preserve** the same rule: shared components, split routes only for capabilities gym owners lack.

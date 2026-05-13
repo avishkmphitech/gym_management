@@ -1,0 +1,102 @@
+---
+description: FitCore 
+globs: apps/fitcore_member/**/*.dart
+alwaysApply: true
+---
+You are building "FitCore" — a Gym Management SaaS platform.
+
+## UNIFIED PLATFORM ARCHITECTURE (RBAC)
+
+### App 1: FitCore Mobile (Flutter) — Single app for all mobile users
+Roles handled inside the same Flutter app:
+  - MEMBER   → Home, Workouts, Diet, Attendance, Profile
+  - TRAINER  → Dashboard, My Members, Create Plans, Schedule, Profile
+  - RECEPTIONIST → Check-in, Member Lookup, Attendance Log, Profile
+
+### App 2: FitCore Web Dashboard (React/Next.js) — Single web app for all admin users
+Roles handled inside the same Next.js app:
+  - GYM_OWNER    → Full gym management (members, trainers, plans, payments, reports)
+  - SUPER_ADMIN  → SaaS management (all gyms, billing, platform analytics)
+  - RECEPTIONIST → Limited web access (attendance, member lookup only)
+
+## RBAC CORE RULES
+- Role is returned in the JWT token payload: { userId, role, gymId, permissions[] }
+- On app launch (after login), role is read from token → routing decision made
+- Each screen/page checks role before rendering — unauthorized = redirect
+- Navigation items, action buttons, and data views are filtered by role
+- Permissions array allows fine-grained control within a role
+
+## ROLE → ROUTE MAP
+
+### Mobile (Flutter)
+- MEMBER      → /member/* routes, BottomNav: Home | Workouts | Diet | Attendance | Profile
+- TRAINER     → /trainer/* routes, BottomNav: Dashboard | Members | Plans | Schedule | Profile
+- RECEPTIONIST→ /receptionist/* routes, BottomNav: Check-in | Members | Log | Profile
+
+### Web (Next.js)
+- GYM_OWNER   → /owner/* (full sidebar)
+- SUPER_ADMIN → /superadmin/* (platform sidebar)
+- RECEPTIONIST→ /receptionist/* (minimal sidebar)
+
+## RBAC SERVICE (Flutter — lib/services/auth_service.dart)
+- AuthService stores: UserModel { id, name, role, gymId, token, permissions }
+- RoleGuard widget: wraps any widget, shows empty/redirect if role not allowed
+- NavigationRouter: reads role from AuthService, returns correct shell + routes
+
+## RBAC SERVICE (Web — lib/auth/rbac.ts)
+- useAuth() hook returns: { user, role, permissions, hasPermission(key) }
+- <PermissionGate permission="members:write"> component wraps guarded UI
+- Middleware: reads JWT, redirects to correct dashboard path by role
+
+## TECH STACK
+- Mobile: Flutter (Dart) — single APK/IPA, role-based routing
+- Web: React + Next.js 14 (App Router) + TailwindCSS
+- Backend: Node.js + Express (mocked for prototype phase)
+- Database: PostgreSQL (multi-tenant via gym_id)
+- Auth: JWT with role + permissions in payload
+- Payments: Razorpay
+- Notifications: Firebase Push + WhatsApp + SMS
+- State Management (Flutter): Riverpod
+
+## DESIGN SYSTEM
+
+### Color Palette
+- Primary Background: #151515
+- Secondary Background: #222222
+- Card Background: #2B2B2B
+- Primary Accent (Green): #3E7C59
+- Secondary Accent (Orange): #C56A3D
+- Primary Text: #F5F5F2
+- Secondary Text: #B8B6B0
+- Border Color: #444444
+- Success: #5A8F58
+- Warning: #B9833E
+- Error: #A94A4A
+- Table Background: #1F1F1F
+- Sidebar Background: #1B1B1B
+
+### Typography
+- Heading Font: Poppins SemiBold
+- Body Font: Inter Regular
+- Heading: 28px | Subheading: 20px | Body: 14px | Caption: 12px
+
+### Button System
+- Primary: bg #3E7C59, white text, radius 14px, height 52px
+- Secondary: bg #303030, border #444444, text #F5F5F2
+- Danger: bg #A94A4A, white text
+- Icon Button: circular, bg #2B2B2B
+- Small Action: h 36px, radius 10px, 12px font
+- Table: Edit #5A8F58 | Delete #A94A4A | View #C56A3D
+
+### Input Fields
+- bg #2B2B2B | border #444444 | focus #3E7C59 | placeholder #B8B6B0
+- height 52px | radius 12px
+
+### Card Design
+- bg #222222 | radius 18px | padding 20px
+
+## PROTOTYPE RULES
+- All data is hardcoded/mocked
+- Navigation must work between all screens
+- All UI states shown: loading, empty, filled, error
+- Role switching must be testable (dev-only role switcher toggle)

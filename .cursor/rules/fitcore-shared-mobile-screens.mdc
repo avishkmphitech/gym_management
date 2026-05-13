@@ -1,0 +1,42 @@
+---
+description: FitCore mobile — shared screens for Member and Trainer (RBMS); no duplicate role-specific UIs
+globs: apps/fitcore_member/**/*.dart
+alwaysApply: false
+---
+
+# FitCore: shared Member + Trainer screens
+
+The unified Flutter app (`apps/fitcore_member`) serves **both** Member and Trainer. **Do not** maintain parallel “member-only” vs “trainer-only” screen trees for the same feature.
+
+## Rules
+
+1. **One screen per feature surface**  
+   Build **common** widgets under `lib/screens/`, `lib/features/`, or `lib/presentation/` that both roles use. Only **branch inside** the widget when behavior or copy differs (tabs, labels, empty states).
+
+2. **Role comes from RBMS / state**  
+   Use `ref.watch(appRoleProvider)` (or a single session/auth provider when wired) or pass an explicit `AppRole` / `bool isTrainer` **into** shared screens. Avoid `TrainerFooScreen` + `MemberFooScreen` duplicates unless the information architecture is genuinely different (not just wording).
+
+3. **Navigation**  
+   Shells (`MemberShell` vs `TrainerRoleShell`) may differ by role, but **child route bodies** should call into the **same** screen widgets where the UX overlaps (e.g. profile, notifications, shared settings).
+
+4. **New work**  
+   When adding a screen: default to **shared** + role flags. Split into a second file only if the product requires **fundamentally** different layouts or data models—and document why in a one-line comment.
+
+## Anti-patterns
+
+- Copy-pasting a whole screen to `trainer_*` / `member_*` with minor text changes.
+- Hardcoding “trainer” routes to widgets that duplicate member UI.
+
+## Good pattern
+
+```dart
+// Shared screen; role tweaks copy and actions only.
+class WorkoutsHubScreen extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final role = ref.watch(appRoleProvider);
+    final isTrainer = role == AppRole.trainer;
+    // ...
+  }
+}
+```
