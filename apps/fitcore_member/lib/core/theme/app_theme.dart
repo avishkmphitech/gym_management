@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../tokens/app_colors.dart';
 
 ThemeData buildFitCoreTheme() {
-  final poppins = GoogleFonts.poppinsTextTheme();
-  final inter = GoogleFonts.interTextTheme();
+  final poppins = GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme);
+  final inter = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
 
   final base = ThemeData(
     useMaterial3: true,
@@ -15,10 +15,10 @@ ThemeData buildFitCoreTheme() {
       primary: AppColors.primaryAccent,
       secondary: AppColors.secondaryAccent,
       surface: AppColors.secondaryBg,
-      error: AppColors.error,
+      onSurface: AppColors.primaryText,
       onPrimary: Colors.white,
       onSecondary: AppColors.primaryText,
-      onSurface: AppColors.primaryText,
+      error: AppColors.error,
     ),
     dividerColor: AppColors.border,
     appBarTheme: AppBarTheme(
@@ -40,13 +40,54 @@ ThemeData buildFitCoreTheme() {
       ),
       margin: EdgeInsets.zero,
     ),
+    listTileTheme: ListTileThemeData(
+      iconColor: AppColors.secondaryText,
+      textColor: AppColors.primaryText,
+      titleTextStyle: GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: AppColors.primaryText,
+      ),
+      subtitleTextStyle: GoogleFonts.inter(
+        fontSize: 13,
+        color: AppColors.secondaryText,
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(foregroundColor: AppColors.primaryAccent),
+    ),
+    dropdownMenuTheme: DropdownMenuThemeData(
+      textStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.primaryText),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: AppColors.cardBg,
+      titleTextStyle: GoogleFonts.poppins(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: AppColors.primaryText,
+      ),
+      contentTextStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.secondaryText),
+    ),
+    datePickerTheme: DatePickerThemeData(
+      backgroundColor: AppColors.cardBg,
+      headerForegroundColor: AppColors.primaryText,
+      dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return Colors.white;
+        return AppColors.primaryText;
+      }),
+      yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return Colors.white;
+        return AppColors.primaryText;
+      }),
+      todayForegroundColor: const WidgetStatePropertyAll(AppColors.primaryAccent),
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.cardBg,
-      hintStyle: inter.bodyMedium?.copyWith(
-        color: AppColors.secondaryText,
-        fontSize: 14,
-      ),
+      labelStyle: inter.bodyMedium?.copyWith(color: AppColors.secondaryText, fontSize: 14),
+      hintStyle: inter.bodyMedium?.copyWith(color: AppColors.secondaryText, fontSize: 14),
+      prefixIconColor: AppColors.secondaryText,
+      suffixIconColor: AppColors.secondaryText,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -93,6 +134,7 @@ ThemeData buildFitCoreTheme() {
 
   return base.copyWith(
     textTheme: inter.copyWith(
+      displaySmall: poppins.displaySmall?.copyWith(color: AppColors.primaryText),
       headlineSmall: poppins.headlineSmall?.copyWith(
         fontSize: 28,
         fontWeight: FontWeight.w600,
@@ -100,6 +142,16 @@ ThemeData buildFitCoreTheme() {
       ),
       titleLarge: poppins.titleLarge?.copyWith(
         fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: AppColors.primaryText,
+      ),
+      titleMedium: poppins.titleMedium?.copyWith(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: AppColors.primaryText,
+      ),
+      titleSmall: poppins.titleSmall?.copyWith(
+        fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppColors.primaryText,
       ),
@@ -113,6 +165,19 @@ ThemeData buildFitCoreTheme() {
       ),
       bodySmall: inter.bodySmall?.copyWith(
         fontSize: 12,
+        color: AppColors.secondaryText,
+      ),
+      labelLarge: inter.labelLarge?.copyWith(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: AppColors.primaryText,
+      ),
+      labelMedium: inter.labelMedium?.copyWith(
+        fontSize: 12,
+        color: AppColors.secondaryText,
+      ),
+      labelSmall: inter.labelSmall?.copyWith(
+        fontSize: 11,
         color: AppColors.secondaryText,
       ),
     ),

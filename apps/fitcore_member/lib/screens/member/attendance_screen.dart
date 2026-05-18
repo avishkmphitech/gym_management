@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/tokens/app_colors.dart';
 import '../../core/widgets/fitcore_button.dart';
+import '../../providers/reception_checkin_provider.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/role_guard.dart';
 
 /// Member attendance — MEMBER role only ([RoleGuard]).
@@ -18,6 +21,11 @@ class AttendanceScreen extends ConsumerStatefulWidget {
 
 class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   DateTime _visibleMonth = DateTime(2026, 6);
+
+  String get _memberId {
+    final name = ref.watch(authServiceProvider)?.name;
+    return ReceptionMemberDirectory.memberIdForMemberUser(name);
+  }
 
   void _shiftMonth(int delta) {
     setState(() {
@@ -63,10 +71,15 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             ),
             const SizedBox(height: 16),
             const _SummaryRow(),
+            const SizedBox(height: 16),
+            _AttendanceStatusBanner(memberId: _memberId),
             const SizedBox(height: 20),
             _AttendanceCalendar(visibleMonth: _visibleMonth, mockToday: _mockToday),
             const SizedBox(height: 20),
-            _QrCheckInCard(onGenerate: () => _showQrModal(context)),
+            _QrAttendanceCard(
+              memberId: _memberId,
+              onGenerate: () => _showQrModal(context, _memberId),
+            ),
             const SizedBox(height: 24),
             const _LogSection(),
           ],
@@ -75,11 +88,56 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     );
   }
 
-  void _showQrModal(BuildContext context) {
+  void _showQrModal(BuildContext context, String memberId) {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const _QrModal(),
+      builder: (ctx) => _QrModal(memberId: memberId),
+    );
+  }
+}
+
+class _AttendanceStatusBanner extends ConsumerWidget {
+  const _AttendanceStatusBanner({required this.memberId});
+
+  final String memberId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isIn = ref.watch(memberCheckedInProvider(memberId));
+    final session = ref.watch(activeMemberSessionProvider(memberId));
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: (isIn ? AppColors.success : AppColors.cardBg).withValues(alpha: isIn ? 0.12 : 1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isIn ? AppColors.success.withValues(alpha: 0.4) : AppColors.border,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isIn ? Icons.place_rounded : Icons.home_outlined,
+            color: isIn ? AppColors.success : AppColors.secondaryText,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              isIn
+                  ? 'You are checked in · since ${session?.checkInTimeLabel ?? '—'}. Show QR at exit to check out.'
+                  : 'You are not checked in. Show QR at the desk to check in.',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: isIn ? AppColors.success : AppColors.secondaryText,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -422,13 +480,16 @@ class _DayCell extends StatelessWidget {
   }
 }
 
-class _QrCheckInCard extends StatelessWidget {
-  const _QrCheckInCard({required this.onGenerate});
+class _QrAttendanceCard extends ConsumerWidget {
+  const _QrAttendanceCard({required this.memberId, required this.onGenerate});
 
+  final String memberId;
   final VoidCallback onGenerate;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isIn = ref.watch(memberCheckedInProvider(memberId));
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -442,30 +503,37 @@ class _QrCheckInCard extends StatelessWidget {
           const Icon(Icons.qr_code_2_rounded, size: 48, color: Color(0xFF3E7C59)),
           const SizedBox(height: 12),
           Text(
-            'Check in at your gym',
+            isIn ? 'Check out at your gym' : 'Check in at your gym',
             style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryText),
           ),
           const SizedBox(height: 6),
           Text(
-            'Show this QR at the entrance scanner',
+            isIn
+                ? 'Show this QR at the desk when leaving — reception will check you out.'
+                : 'Show this QR at the desk — reception will check you in.',
             style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFFB8B6B0)),
           ),
           const SizedBox(height: 16),
-          FitCoreButton(label: 'Generate QR Code', onPressed: onGenerate),
+          FitCoreButton(
+            label: isIn ? 'Generate QR (check out)' : 'Generate QR (check in)',
+            onPressed: onGenerate,
+          ),
         ],
       ),
     );
   }
 }
 
-class _QrModal extends StatefulWidget {
-  const _QrModal();
+class _QrModal extends ConsumerStatefulWidget {
+  const _QrModal({required this.memberId});
+
+  final String memberId;
 
   @override
-  State<_QrModal> createState() => _QrModalState();
+  ConsumerState<_QrModal> createState() => _QrModalState();
 }
 
-class _QrModalState extends State<_QrModal> {
+class _QrModalState extends ConsumerState<_QrModal> {
   static const _duration = 60;
   int _remaining = _duration;
   Timer? _timer;
@@ -497,6 +565,8 @@ class _QrModalState extends State<_QrModal> {
 
   @override
   Widget build(BuildContext context) {
+    final isIn = ref.watch(memberCheckedInProvider(widget.memberId));
+
     return Dialog(
       backgroundColor: const Color(0xFF222222),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -505,18 +575,33 @@ class _QrModalState extends State<_QrModal> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _MockQrPattern(),
+            QrImageView(
+              data: ReceptionMemberDirectory.qrPayloadFor(widget.memberId),
+              size: 180,
+              backgroundColor: Colors.white,
+              eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),
+              dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Colors.black),
+            ),
             const SizedBox(height: 16),
             Text(
-              'Rahul Sharma',
+              'Aarav Khanna',
               style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.primaryText),
             ),
             const SizedBox(height: 4),
             Text(
-              'Member ID: M-20481',
+              'Member ID: ${widget.memberId}',
               style: GoogleFonts.inter(fontSize: 14, color: AppColors.secondaryText),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            Text(
+              isIn ? 'Desk scan → check out' : 'Desk scan → check in',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isIn ? AppColors.secondaryAccent : AppColors.success,
+              ),
+            ),
+            const SizedBox(height: 12),
             Text(
               'Valid for $_remaining seconds',
               style: GoogleFonts.inter(
@@ -540,42 +625,6 @@ class _QrModalState extends State<_QrModal> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Simple deterministic mock QR pattern.
-class _MockQrPattern extends StatelessWidget {
-  const _MockQrPattern();
-
-  @override
-  Widget build(BuildContext context) {
-    const size = 180.0;
-    const cells = 21;
-    return SizedBox(
-      width: size,
-      height: size,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: ColoredBox(
-          color: Colors.white,
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: cells,
-              childAspectRatio: 1,
-            ),
-            itemCount: cells * cells,
-            itemBuilder: (context, i) {
-              final r = i ~/ cells;
-              final c = i % cells;
-              final on = (r * 7 + c * 3 + (r ^ c)) % 3 != 0;
-              return ColoredBox(color: on ? Colors.black : Colors.white);
-            },
-          ),
         ),
       ),
     );

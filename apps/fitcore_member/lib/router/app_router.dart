@@ -8,6 +8,12 @@ import '../screens/member/diet_screen.dart';
 import '../screens/member/home_screen.dart';
 import '../screens/member/workout_screen.dart';
 import '../features/shell/receptionist_shell.dart';
+import '../screens/receptionist/reception_attendance_log_screen.dart';
+import '../screens/receptionist/reception_checkin_screen.dart';
+import '../screens/receptionist/reception_member_detail_screen.dart';
+import '../screens/receptionist/reception_members_screen.dart';
+import '../screens/receptionist/reception_phone_checkin_screen.dart';
+import '../screens/receptionist/reception_qr_checkin_screen.dart';
 import '../features/shell/trainer_role_shell.dart';
 import '../models/user_model.dart';
 import '../screens/auth/login_screen.dart';
@@ -181,12 +187,36 @@ final memberRouterProvider = Provider<GoRouter>((ref) {
             branches: [
               StatefulShellBranch(
                 routes: [
-                  GoRoute(path: 'checkin', builder: (context, state) => const ReceptionCheckInScreen()),
+                  GoRoute(
+                    path: 'checkin',
+                    builder: (context, state) => const ReceptionCheckInScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'qr',
+                        builder: (context, state) => const ReceptionQrCheckInScreen(),
+                      ),
+                      GoRoute(
+                        path: 'phone',
+                        builder: (context, state) => const ReceptionPhoneCheckInScreen(),
+                      ),
+                    ],
+                  ),
                 ],
               ),
               StatefulShellBranch(
                 routes: [
-                  GoRoute(path: 'members', builder: (context, state) => const ReceptionMembersLookupScreen()),
+                  GoRoute(
+                    path: 'members',
+                    builder: (context, state) => const ReceptionMembersScreen(),
+                    routes: [
+                      GoRoute(
+                        path: ':memberId',
+                        builder: (context, state) => ReceptionMemberDetailScreen(
+                          memberId: state.pathParameters['memberId']!,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
               StatefulShellBranch(

@@ -34,14 +34,20 @@ class ProfileScreen extends ConsumerWidget {
               CircleAvatar(
                 radius: 36,
                 backgroundColor: AppColors.cardBg,
-                child: Text('AK', style: Theme.of(context).textTheme.titleLarge),
+                child: Text(
+                  'AK',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppColors.primaryText),
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Aarav Khanna', style: Theme.of(context).textTheme.titleLarge),
+                    Text(
+                      'Aarav Khanna',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppColors.primaryText),
+                    ),
                     Text('Member · gym_id: apex-iron-01', style: Theme.of(context).textTheme.bodyMedium),
                   ],
                 ),

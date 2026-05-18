@@ -268,7 +268,11 @@ class _MembershipCard extends StatelessWidget {
                 ),
                 child: Text(
                   'Renew Now',
-                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryAccent,
+                  ),
                 ),
               ),
             ],
@@ -310,7 +314,14 @@ class _TodaysWorkoutCard extends StatelessWidget {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text('View All', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                child: Text(
+                  'View All',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryAccent,
+                  ),
+                ),
               ),
             ],
           ),
@@ -394,7 +405,14 @@ class _NutritionCard extends StatelessWidget {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text('View Plan', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                child: Text(
+                  'View Plan',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryAccent,
+                  ),
+                ),
               ),
             ],
           ),
@@ -497,7 +515,14 @@ class _RecentAttendanceSection extends StatelessWidget {
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: Text('See All', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+              child: Text(
+                'See All',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryAccent,
+                ),
+              ),
             ),
           ],
         ),

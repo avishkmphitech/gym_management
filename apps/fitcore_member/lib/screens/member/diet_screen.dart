@@ -385,19 +385,25 @@ class _DailySummaryCard extends StatelessWidget {
             display: '${fCur.toInt()}g / ${fGoal.toInt()}g',
           ),
           const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(glassesTotal, (i) {
-              final filled = i < glassesFilled;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(
-                  Icons.water_drop_rounded,
-                  size: 28,
-                  color: filled ? _kGreen : _kTrack,
-                ),
-              );
-            }),
+          Align(
+            alignment: Alignment.center,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(glassesTotal, (i) {
+                  final filled = i < glassesFilled;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(
+                      Icons.water_drop_rounded,
+                      size: 28,
+                      color: filled ? _kGreen : _kTrack,
+                    ),
+                  );
+                }),
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -717,7 +723,10 @@ class _PlanFooterCard extends StatelessWidget {
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Messaging opens here.', style: GoogleFonts.inter()),
+                  content: Text(
+                    'Messaging opens here.',
+                    style: GoogleFonts.inter(color: AppColors.primaryText),
+                  ),
                   behavior: SnackBarBehavior.floating,
                 ),
               );

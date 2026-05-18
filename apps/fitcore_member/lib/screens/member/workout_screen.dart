@@ -246,7 +246,11 @@ class _WorkoutsScreenState extends ConsumerState<WorkoutsScreen> with SingleTick
                   ),
                   child: Text(
                     'Finish Workout',
-                    style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700),
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
