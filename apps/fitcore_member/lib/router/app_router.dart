@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/shell/member_shell.dart';
 import '../screens/member/attendance_screen.dart';
+import '../screens/member/diet_screen.dart';
 import '../screens/member/home_screen.dart';
 import '../screens/member/workout_screen.dart';
 import '../features/shell/receptionist_shell.dart';
