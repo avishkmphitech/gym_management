@@ -6,6 +6,11 @@ import '../features/shell/member_shell.dart';
 import '../screens/member/attendance_screen.dart';
 import '../screens/member/diet_screen.dart';
 import '../screens/member/home_screen.dart';
+import '../screens/member/member_edit_profile_screen.dart';
+import '../screens/member/member_notifications_screen.dart';
+import '../screens/member/member_trainer_chat_screen.dart';
+import '../screens/member/member_workout_day_screen.dart';
+import '../screens/member/member_workout_history_screen.dart';
 import '../screens/member/workout_screen.dart';
 import '../features/shell/receptionist_shell.dart';
 import '../screens/receptionist/reception_attendance_log_screen.dart';
@@ -25,9 +30,15 @@ import '../screens/trainer/trainer_edit_session_screen.dart';
 import '../screens/trainer/trainer_member_detail_screen.dart';
 import '../screens/trainer/trainer_notification_prefs_screen.dart';
 import '../screens/trainer/trainer_notifications_screen.dart';
+import '../screens/trainer/trainer_messages_screen.dart';
+import '../screens/shared/trainer_member_chat_screen.dart';
 import '../screens/receptionist/reception_notifications_screen.dart';
 import '../models/user_model.dart';
+import '../screens/auth/forgot_password_screen.dart';
+import '../screens/auth/invitation_setup_screen.dart';
 import '../screens/auth/login_screen.dart';
+import '../screens/auth/reset_password_screen.dart';
+import '../screens/auth/verify_otp_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/splash_screen.dart';
 import '../services/auth_service.dart';
@@ -73,6 +84,10 @@ String? _authRedirect(Ref ref, GoRouterState state) {
     return null;
   }
 
+  if (path.startsWith('/forgot-password') || path.startsWith('/auth/invite')) {
+    return _homeForRole(user.role);
+  }
+
   if (path == '/login' || path == '/' || path == '/onboarding') {
     return _homeForRole(user.role);
   }
@@ -113,9 +128,31 @@ final memberRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
+        routes: [
+          GoRoute(path: 'verify', builder: (context, state) => const VerifyOtpScreen()),
+          GoRoute(path: 'reset', builder: (context, state) => const ResetPasswordScreen()),
+        ],
+      ),
+      GoRoute(
+        path: '/auth/invite',
+        builder: (context, state) => InvitationSetupScreen(
+          initialEmail: state.uri.queryParameters['email'],
+        ),
+      ),
+      GoRoute(
         path: '/member',
         redirect: (context, state) => null,
         routes: [
+          GoRoute(
+            path: 'notifications',
+            builder: (context, state) => const MemberNotificationsScreen(),
+          ),
+          GoRoute(
+            path: 'messages',
+            builder: (context, state) => const MemberTrainerChatScreen(),
+          ),
           StatefulShellRoute.indexedStack(
             builder: (context, state, navigationShell) {
               return MemberShell(navigationShell: navigationShell);
@@ -128,7 +165,22 @@ final memberRouterProvider = Provider<GoRouter>((ref) {
               ),
               StatefulShellBranch(
                 routes: [
-                  GoRoute(path: 'workouts', builder: (context, state) => const WorkoutsScreen()),
+                  GoRoute(
+                    path: 'workouts',
+                    builder: (context, state) => const WorkoutsScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'history',
+                        builder: (context, state) => const MemberWorkoutHistoryScreen(),
+                      ),
+                      GoRoute(
+                        path: 'day/:dayIndex',
+                        builder: (context, state) => MemberWorkoutDayScreen(
+                          dayIndex: int.tryParse(state.pathParameters['dayIndex'] ?? '0') ?? 0,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
               StatefulShellBranch(
@@ -143,7 +195,16 @@ final memberRouterProvider = Provider<GoRouter>((ref) {
               ),
               StatefulShellBranch(
                 routes: [
-                  GoRoute(path: 'profile', builder: (context, state) => const ProfileScreen()),
+                  GoRoute(
+                    path: 'profile',
+                    builder: (context, state) => const ProfileScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        builder: (context, state) => const MemberEditProfileScreen(),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ],
@@ -167,6 +228,18 @@ final memberRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'profile/notifications',
             redirect: (context, state) => '/trainer/notifications/settings',
+          ),
+          GoRoute(
+            path: 'messages',
+            builder: (context, state) => const TrainerMessagesScreen(),
+            routes: [
+              GoRoute(
+                path: ':memberId',
+                builder: (context, state) => TrainerMemberChatScreen(
+                  memberId: state.pathParameters['memberId']!,
+                ),
+              ),
+            ],
           ),
           StatefulShellRoute.indexedStack(
             builder: (context, state, navigationShell) {

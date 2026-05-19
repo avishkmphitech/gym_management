@@ -7,8 +7,11 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/tokens/app_colors.dart';
 import '../../core/widgets/fitcore_button.dart';
+import '../../providers/member_identity.dart';
+import '../../providers/member_provider.dart';
 import '../../providers/reception_checkin_provider.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/member_phase_viewport.dart';
 import '../../widgets/role_guard.dart';
 
 /// Member attendance — MEMBER role only ([RoleGuard]).
@@ -20,12 +23,9 @@ class AttendanceScreen extends ConsumerStatefulWidget {
 }
 
 class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
-  DateTime _visibleMonth = DateTime(2026, 6);
+  late DateTime _visibleMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
-  String get _memberId {
-    final name = ref.watch(authServiceProvider)?.name;
-    return ReceptionMemberDirectory.memberIdForMemberUser(name);
-  }
+  String get _memberId => ref.watch(memberReceptionIdProvider);
 
   void _shiftMonth(int delta) {
     setState(() {
@@ -33,10 +33,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     });
   }
 
-  static final DateTime _mockToday = DateTime(2026, 6, 13);
-
   @override
   Widget build(BuildContext context) {
+    final summary = ref.watch(memberMonthAttendanceSummaryProvider(_visibleMonth));
+    final calendarDays = ref.watch(memberCalendarDaysProvider(_visibleMonth));
+    final logEntries = ref.watch(memberFormattedAttendanceLogProvider);
     return RoleGuard(
       allowedRoles: const ['MEMBER'],
       fallback: const _AccessDenied(),
@@ -56,33 +57,41 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           ),
           actions: [
             IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.calendar_month_outlined, color: AppColors.primaryText, size: 26),
+              onPressed: () {
+                final now = DateTime.now();
+                setState(() => _visibleMonth = DateTime(now.year, now.month));
+              },
+              icon: const Icon(Icons.today_outlined, color: AppColors.primaryText, size: 26),
+              tooltip: 'Jump to today',
             ),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          children: [
-            _MonthSelectorRow(
-              month: _visibleMonth,
-              onPrev: () => _shiftMonth(-1),
-              onNext: () => _shiftMonth(1),
-            ),
-            const SizedBox(height: 16),
-            const _SummaryRow(),
-            const SizedBox(height: 16),
-            _AttendanceStatusBanner(memberId: _memberId),
-            const SizedBox(height: 20),
-            _AttendanceCalendar(visibleMonth: _visibleMonth, mockToday: _mockToday),
-            const SizedBox(height: 20),
-            _QrAttendanceCard(
-              memberId: _memberId,
-              onGenerate: () => _showQrModal(context, _memberId),
-            ),
-            const SizedBox(height: 24),
-            const _LogSection(),
-          ],
+        body: MemberPhaseViewport(
+          expandChild: true,
+          emptyMessage: 'No attendance in this preview state.',
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            children: [
+              _MonthSelectorRow(
+                month: _visibleMonth,
+                onPrev: () => _shiftMonth(-1),
+                onNext: () => _shiftMonth(1),
+              ),
+              const SizedBox(height: 16),
+              _SummaryRow(summary: summary),
+              const SizedBox(height: 16),
+              _AttendanceStatusBanner(memberId: _memberId),
+              const SizedBox(height: 20),
+              _AttendanceCalendar(visibleMonth: _visibleMonth, days: calendarDays),
+              const SizedBox(height: 20),
+              _QrAttendanceCard(
+                memberId: _memberId,
+                onGenerate: () => _showQrModal(context, _memberId),
+              ),
+              const SizedBox(height: 24),
+              _LogSection(entries: logEntries),
+            ],
+          ),
         ),
       ),
     );
@@ -215,7 +224,9 @@ class _MonthSelectorRow extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow();
+  const _SummaryRow({required this.summary});
+
+  final MemberMonthAttendanceSummary summary;
 
   @override
   Widget build(BuildContext context) {
@@ -227,7 +238,7 @@ class _SummaryRow extends StatelessWidget {
             textColor: const Color(0xFF5A8F58),
             icon: '✓',
             label: 'Present',
-            value: '18',
+            value: '${summary.present}',
           ),
         ),
         const SizedBox(width: 10),
@@ -237,7 +248,7 @@ class _SummaryRow extends StatelessWidget {
             textColor: const Color(0xFFA94A4A),
             icon: '✗',
             label: 'Absent',
-            value: '8',
+            value: '${summary.absent}',
           ),
         ),
         const SizedBox(width: 10),
@@ -247,7 +258,7 @@ class _SummaryRow extends StatelessWidget {
             textColor: const Color(0xFFF5F5F2),
             icon: '∑',
             label: 'Total',
-            value: '26',
+            value: '${summary.total}',
           ),
         ),
       ],
@@ -302,43 +313,32 @@ enum _DayCellKind { present, absent, today, future, rest }
 class _AttendanceCalendar extends StatelessWidget {
   const _AttendanceCalendar({
     required this.visibleMonth,
-    required this.mockToday,
+    required this.days,
   });
 
   final DateTime visibleMonth;
-  final DateTime mockToday;
+  final List<MemberDayAttendance> days;
 
   static const _headers = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
   _DayCellKind _kindForDay(int day) {
-    final dt = DateTime(visibleMonth.year, visibleMonth.month, day);
-    final wd = dt.weekday;
-
-    if (visibleMonth.year != 2026 || visibleMonth.month != 6) {
-      if (dt.isAfter(mockToday)) return _DayCellKind.future;
-      if (wd == DateTime.saturday || wd == DateTime.sunday) return _DayCellKind.rest;
-      return _DayCellKind.present;
+    final entry = days.firstWhere(
+      (d) => d.date.day == day,
+      orElse: () => MemberDayAttendance(date: DateTime(visibleMonth.year, visibleMonth.month, day), kind: 'future'),
+    );
+    switch (entry.kind) {
+      case 'present':
+        return _DayCellKind.present;
+      case 'absent':
+        return _DayCellKind.absent;
+      case 'today':
+        return _DayCellKind.today;
+      case 'rest':
+        return _DayCellKind.rest;
+      default:
+        return _DayCellKind.future;
     }
-
-    if (_sameDate(dt, mockToday)) return _DayCellKind.today;
-
-    if (dt.isAfter(mockToday)) {
-      if (wd == DateTime.saturday || wd == DateTime.sunday) return _DayCellKind.rest;
-      return _DayCellKind.future;
-    }
-
-    if (wd == DateTime.saturday || wd == DateTime.sunday) return _DayCellKind.rest;
-
-    if (day <= 13) {
-      if (day == 5 || day == 8 || day == 11) return _DayCellKind.absent;
-      return _DayCellKind.present;
-    }
-
-    if (wd == DateTime.saturday || wd == DateTime.sunday) return _DayCellKind.rest;
-    return _DayCellKind.future;
   }
-
-  bool _sameDate(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 
   @override
   Widget build(BuildContext context) {
@@ -584,7 +584,7 @@ class _QrModalState extends ConsumerState<_QrModal> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Aarav Khanna',
+              ref.watch(authServiceProvider)?.name ?? 'Member',
               style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.primaryText),
             ),
             const SizedBox(height: 4),
@@ -631,41 +631,10 @@ class _QrModalState extends ConsumerState<_QrModal> {
   }
 }
 
-class _LogEntry {
-  const _LogEntry({
-    required this.title,
-    required this.subtitle,
-  });
-
-  final String title;
-  final String subtitle;
-}
-
 class _LogSection extends StatelessWidget {
-  const _LogSection();
+  const _LogSection({required this.entries});
 
-  static const _entries = [
-    _LogEntry(
-      title: 'Jun 13, 2026 — Saturday',
-      subtitle: 'Check-in: 6:32 AM | Check-out: 8:15 AM | Duration: 1h 43m',
-    ),
-    _LogEntry(
-      title: 'Jun 12, 2026 — Friday',
-      subtitle: 'Check-in: 6:45 AM | Check-out: 8:02 AM | Duration: 1h 17m',
-    ),
-    _LogEntry(
-      title: 'Jun 11, 2026 — Thursday',
-      subtitle: 'Check-in: — | Check-out: — | Duration: —',
-    ),
-    _LogEntry(
-      title: 'Jun 10, 2026 — Wednesday',
-      subtitle: 'Check-in: 6:28 AM | Check-out: 7:55 AM | Duration: 1h 27m',
-    ),
-    _LogEntry(
-      title: 'Jun 9, 2026 — Tuesday',
-      subtitle: 'Check-in: 6:40 AM | Check-out: 8:30 AM | Duration: 1h 50m',
-    ),
-  ];
+  final List<MemberAttendanceDayLog> entries;
 
   @override
   Widget build(BuildContext context) {
@@ -677,7 +646,13 @@ class _LogSection extends StatelessWidget {
           style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryText),
         ),
         const SizedBox(height: 12),
-        ..._entries.map(
+        if (entries.isEmpty)
+          Text(
+            'No attendance logged yet. Check in at the desk with your QR.',
+            style: GoogleFonts.inter(fontSize: 13, color: AppColors.secondaryText),
+          )
+        else
+        ...entries.map(
           (e) => Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Material(
@@ -688,12 +663,19 @@ class _LogSection extends StatelessWidget {
                 leading: Container(
                   width: 40,
                   height: 40,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1F3B2D),
+                  decoration: BoxDecoration(
+                    color: e.completed ? const Color(0xFF1F3B2D) : const Color(0xFF2B2B2B),
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,
-                  child: const Text('✓', style: TextStyle(color: Color(0xFF5A8F58), fontSize: 18, fontWeight: FontWeight.w700)),
+                  child: Text(
+                    e.completed ? '✓' : '→',
+                    style: TextStyle(
+                      color: e.completed ? const Color(0xFF5A8F58) : AppColors.secondaryText,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 title: Text(
                   e.title,
@@ -713,7 +695,7 @@ class _LogSection extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'QR Scan',
+                    e.methodLabel,
                     style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: const Color(0xFF5A8F58)),
                   ),
                 ),

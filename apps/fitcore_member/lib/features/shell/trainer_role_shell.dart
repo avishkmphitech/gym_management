@@ -16,6 +16,7 @@ import '../../widgets/role_shell.dart';
 import '../trainer/trainer_quick_actions.dart';
 import '../trainer/trainer_profile_card.dart';
 import '../../providers/trainer_notifications_provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../widgets/notification_bell_button.dart';
 import '../../widgets/trainer_assignment_history_section.dart';
 import '../../widgets/trainer_permission_gate.dart';
@@ -43,11 +44,13 @@ class TrainerHomeScreen extends ConsumerWidget {
     final firstName = user?.name.split(' ').first ?? 'Coach';
 
     final unread = ref.watch(trainerNotificationsProvider).unreadCount;
+    final chatUnread = ref.watch(trainerChatUnreadProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Trainer Dashboard'),
         actions: [
+          _MessagesAppBarButton(unreadCount: chatUnread),
           NotificationBellButton(
             unreadCount: unread,
             onTap: () => context.push('/trainer/notifications'),
@@ -257,8 +260,15 @@ class TrainerMembersScreen extends ConsumerWidget {
     final phase = ref.watch(mockUiPhaseProvider);
     final trainer = ref.watch(trainerProvider);
 
+    final chatUnread = ref.watch(trainerChatUnreadProvider);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Assigned Members')),
+      appBar: AppBar(
+        title: const Text('Assigned Members'),
+        actions: [
+          _MessagesAppBarButton(unreadCount: chatUnread),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -349,6 +359,11 @@ class _MembersBody extends StatelessWidget {
                             ],
                           ],
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chat_bubble_outline, color: AppColors.primaryAccent),
+                        tooltip: 'Message member',
+                        onPressed: () => context.push('/trainer/messages/${m.id}'),
                       ),
                       TrainerPermissionGate(
                         permission: 'diet:write',
@@ -899,5 +914,47 @@ class _ProfileBody extends StatelessWidget {
           onSignOut: onSignOut,
         );
     }
+  }
+}
+
+class _MessagesAppBarButton extends StatelessWidget {
+  const _MessagesAppBarButton({required this.unreadCount});
+
+  final int unreadCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          onPressed: () => context.push('/trainer/messages'),
+          icon: const Icon(Icons.chat_bubble_outline),
+          tooltip: 'Messages',
+        ),
+        if (unreadCount > 0)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              constraints: const BoxConstraints(minWidth: 18),
+              decoration: BoxDecoration(
+                color: AppColors.primaryAccent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                unreadCount > 9 ? '9+' : '$unreadCount',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }

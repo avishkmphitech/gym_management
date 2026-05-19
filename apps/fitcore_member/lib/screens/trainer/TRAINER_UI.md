@@ -15,5 +15,6 @@ Prototype UI states use `PhaseChips` + `mockUiPhaseProvider` on dashboard, membe
 | Notifications | Route |
 |---------------|--------|
 | Trainer inbox | `/trainer/notifications` |
+| Member messages | `/trainer/messages` · `/trainer/messages/:memberId` |
 | Trainer settings | `/trainer/notifications/settings` |
 | Reception inbox | `/receptionist/notifications` |

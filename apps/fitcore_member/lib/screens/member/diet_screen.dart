@@ -2,10 +2,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/tokens/app_colors.dart';
 import '../../core/widgets/fitcore_button.dart';
+import '../../data/mock/mock_models.dart';
+import '../../providers/chat_provider.dart';
+import '../../providers/member_provider.dart';
+import '../../widgets/member_phase_viewport.dart';
 import '../../widgets/role_guard.dart';
 
 const _kOrange = Color(0xFFC56A3D);
@@ -62,74 +67,140 @@ class _MealBlockData {
 }
 
 class _DietScreenState extends ConsumerState<DietScreen> {
-  static const _meals = [
-    _MealBlockData(
-      emoji: '🌅',
-      title: 'Breakfast',
-      totalKcal: 680,
-      initiallyExpanded: true,
-      items: [
-        _MealItemData(name: 'Oats with banana', quantity: '1 bowl', kcal: 380, dot: _DotKind.carb, chip: 'Carb-heavy'),
-        _MealItemData(name: 'Boiled eggs (2)', quantity: '2 pcs', kcal: 140, dot: _DotKind.protein),
-        _MealItemData(name: 'Protein shake', quantity: '1 scoop', kcal: 160, dot: _DotKind.protein, chip: 'Protein'),
-      ],
-    ),
-    _MealBlockData(
-      emoji: '☀️',
-      title: 'Lunch',
-      totalKcal: 620,
-      items: [
-        _MealItemData(name: 'Grilled chicken breast', quantity: '200g', kcal: 330, dot: _DotKind.protein),
-        _MealItemData(name: 'Brown rice', quantity: '150g', kcal: 210, dot: _DotKind.carb),
-        _MealItemData(name: 'Salad bowl', quantity: '1 plate', kcal: 80, dot: _DotKind.veg),
-      ],
-    ),
-    _MealBlockData(
-      emoji: '🌙',
-      title: 'Dinner',
-      totalKcal: 600,
-      items: [
-        _MealItemData(name: 'Paneer bhurji', quantity: '150g', kcal: 280, dot: _DotKind.protein),
-        _MealItemData(name: 'Dal + 2 roti', quantity: '—', kcal: 320, dot: _DotKind.balanced),
-      ],
-    ),
-    _MealBlockData(
-      emoji: '🏃',
-      title: 'Pre/Post Workout',
-      totalKcal: 340,
-      items: [
-        _MealItemData(
-          name: 'Banana + peanut butter',
-          quantity: '—',
-          kcal: 220,
-          dot: _DotKind.carb,
-          workoutBadge: _WorkoutBadgeKind.pre,
-        ),
-        _MealItemData(
-          name: 'Whey protein shake',
-          quantity: '1 scoop',
-          kcal: 120,
-          dot: _DotKind.protein,
-          workoutBadge: _WorkoutBadgeKind.post,
-        ),
-      ],
-    ),
-  ];
+  List<bool> _itemLogged = [];
+  String? _loadedDietId;
 
-  late final List<bool> _itemLogged;
-
-  @override
-  void initState() {
-    super.initState();
-    var n = 0;
-    for (final m in _meals) {
-      n += m.items.length;
+  static String _emojiForSlot(String type) {
+    switch (type) {
+      case 'breakfast':
+        return '🌅';
+      case 'lunch':
+        return '☀️';
+      case 'dinner':
+        return '🌙';
+      case 'pre_workout':
+      case 'post_workout':
+        return '🏃';
+      default:
+        return '🍎';
     }
-    _itemLogged = List<bool>.filled(n, false);
   }
 
-  void _toggleLog(int flatIndex) {
-    setState(() => _itemLogged[flatIndex] = !_itemLogged[flatIndex]);
+  static _DotKind _dotForFood(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('chicken') || n.contains('egg') || n.contains('protein') || n.contains('paneer') || n.contains('whey')) {
+      return _DotKind.protein;
+    }
+    if (n.contains('rice') || n.contains('oats') || n.contains('banana') || n.contains('roti')) {
+      return _DotKind.carb;
+    }
+    if (n.contains('salad') || n.contains('veg')) {
+      return _DotKind.veg;
+    }
+    return _DotKind.balanced;
+  }
+
+  static String? _chipForDot(_DotKind dot) {
+    switch (dot) {
+      case _DotKind.protein:
+        return 'Protein';
+      case _DotKind.carb:
+        return 'Carb-heavy';
+      case _DotKind.veg:
+        return 'Veg';
+      case _DotKind.balanced:
+        return null;
+    }
+  }
+
+  static List<_MealBlockData> _blocksFromPlan(MockMeal diet) {
+    return diet.mealSlots.map((slot) {
+      final items = slot.foods.map((f) {
+        final dot = _dotForFood(f.name);
+        return _MealItemData(
+          name: f.name,
+          quantity: f.quantity,
+          kcal: f.calories,
+          dot: dot,
+          chip: _chipForDot(dot),
+          workoutBadge: slot.type == 'pre_workout'
+                  ? _WorkoutBadgeKind.pre
+                  : slot.type == 'post_workout'
+                      ? _WorkoutBadgeKind.post
+                      : null,
+        );
+      }).toList();
+      return _MealBlockData(
+        emoji: _emojiForSlot(slot.type),
+        title: slot.title,
+        totalKcal: slot.totalCalories,
+        initiallyExpanded: slot.type == 'breakfast',
+        items: items,
+      );
+    }).toList();
+  }
+
+  int _itemCount(List<_MealBlockData> blocks) {
+    var n = 0;
+    for (final m in blocks) {
+      n += m.items.length;
+    }
+    return n;
+  }
+
+  List<bool> _loggedFor(String dietId, int count) {
+    if (_loadedDietId != dietId || _itemLogged.length != count) {
+      return List.filled(count, false);
+    }
+    return _itemLogged;
+  }
+
+  ({int kcal, double protein, double carbs, double fat}) _macrosFromLogged(
+    List<_MealBlockData> blocks,
+    List<bool> logged,
+  ) {
+    var flat = 0;
+    var kcal = 0;
+    var protein = 0.0;
+    var carbs = 0.0;
+    var fat = 0.0;
+    for (final block in blocks) {
+      for (final item in block.items) {
+        if (flat < logged.length && logged[flat]) {
+          kcal += item.kcal;
+          switch (item.dot) {
+            case _DotKind.protein:
+              protein += item.kcal * 0.35 / 4;
+              carbs += item.kcal * 0.15 / 4;
+              fat += item.kcal * 0.25 / 9;
+            case _DotKind.carb:
+              protein += item.kcal * 0.1 / 4;
+              carbs += item.kcal * 0.55 / 4;
+              fat += item.kcal * 0.1 / 9;
+            case _DotKind.veg:
+              protein += item.kcal * 0.15 / 4;
+              carbs += item.kcal * 0.5 / 4;
+              fat += item.kcal * 0.1 / 9;
+            case _DotKind.balanced:
+              protein += item.kcal * 0.25 / 4;
+              carbs += item.kcal * 0.45 / 4;
+              fat += item.kcal * 0.2 / 9;
+          }
+        }
+        flat++;
+      }
+    }
+    return (kcal: kcal, protein: protein, carbs: carbs, fat: fat);
+  }
+
+  void _toggleLog(int flatIndex, String dietId, int count) {
+    setState(() {
+      if (_loadedDietId != dietId || _itemLogged.length != count) {
+        _loadedDietId = dietId;
+        _itemLogged = List.filled(count, false);
+      }
+      _itemLogged[flatIndex] = !_itemLogged[flatIndex];
+    });
   }
 
   void _showMacroInfo(BuildContext context) {
@@ -214,6 +285,45 @@ class _DietScreenState extends ConsumerState<DietScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final diet = ref.watch(memberDietPlanProvider);
+    final membership = ref.watch(memberMembershipProvider);
+
+    if (diet == null) {
+      return RoleGuard(
+        allowedRoles: const ['MEMBER'],
+        fallback: const _AccessDenied(),
+        child: Scaffold(
+          backgroundColor: AppColors.primaryBg,
+          appBar: AppBar(
+            backgroundColor: AppColors.primaryBg,
+            elevation: 0,
+            title: Text(
+              'My Nutrition',
+              style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.primaryText),
+            ),
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'No meal plan assigned yet.\nAsk your trainer to assign a diet plan.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(fontSize: 15, color: AppColors.secondaryText, height: 1.4),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final meals = _blocksFromPlan(diet);
+    final itemCount = _itemCount(meals);
+    final logged = _loggedFor(diet.id, itemCount);
+    final macros = _macrosFromLogged(meals, logged);
+    final consumed = macros.kcal;
+    final goal = diet.computedCalories;
+    final waterGlasses = ref.watch(memberWaterGlassesProvider);
+
     return RoleGuard(
       allowedRoles: const ['MEMBER'],
       fallback: const _AccessDenied(),
@@ -238,35 +348,58 @@ class _DietScreenState extends ConsumerState<DietScreen> {
             ),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          children: [
-            const _DailySummaryCard(),
-            const SizedBox(height: 16),
-            ..._buildMealTiles(),
-            const SizedBox(height: 16),
-            const _PlanFooterCard(),
-          ],
+        body: MemberPhaseViewport(
+          expandChild: true,
+          emptyMessage: 'No nutrition data in this preview state.',
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            children: [
+              _DailySummaryCard(
+                consumed: consumed,
+                goal: goal,
+                proteinG: diet.proteinG,
+                carbsG: diet.carbsG,
+                fatsG: diet.fatsG,
+                proteinCur: macros.protein,
+                carbsCur: macros.carbs,
+                fatCur: macros.fat,
+                waterGlassesFilled: waterGlasses,
+                onWaterGlassTap: (index) {
+                  final current = ref.read(memberWaterGlassesProvider);
+                  ref.read(memberWaterGlassesProvider.notifier).state =
+                      index < current ? index : index + 1;
+                },
+              ),
+              const SizedBox(height: 16),
+              ..._buildMealTiles(meals, diet.id, logged),
+              const SizedBox(height: 16),
+              _PlanFooterCard(
+                trainerName: membership.trainerName,
+                planTitle: diet.title,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  List<Widget> _buildMealTiles() {
+  List<Widget> _buildMealTiles(List<_MealBlockData> mealBlocks, String dietId, List<bool> logged) {
     var flat = 0;
     final out = <Widget>[];
-    for (var mi = 0; mi < _meals.length; mi++) {
-      final m = _meals[mi];
+    final count = _itemCount(mealBlocks);
+    for (var mi = 0; mi < mealBlocks.length; mi++) {
+      final m = mealBlocks[mi];
       out.add(
         _MealExpansionTile(
           data: m,
           flatBaseIndex: flat,
-          logged: _itemLogged,
-          onToggleLog: _toggleLog,
+          logged: logged,
+          onToggleLog: (i) => _toggleLog(i, dietId, count),
         ),
       );
       flat += m.items.length;
-      if (mi < _meals.length - 1) {
+      if (mi < mealBlocks.length - 1) {
         out.add(const SizedBox(height: 12));
       }
     }
@@ -293,23 +426,42 @@ class _AccessDenied extends StatelessWidget {
 }
 
 class _DailySummaryCard extends StatelessWidget {
-  const _DailySummaryCard();
+  const _DailySummaryCard({
+    required this.consumed,
+    required this.goal,
+    required this.proteinG,
+    required this.carbsG,
+    required this.fatsG,
+    required this.proteinCur,
+    required this.carbsCur,
+    required this.fatCur,
+    required this.waterGlassesFilled,
+    required this.onWaterGlassTap,
+  });
+
+  final int consumed;
+  final int goal;
+  final int proteinG;
+  final int carbsG;
+  final int fatsG;
+  final double proteinCur;
+  final double carbsCur;
+  final double fatCur;
+  final int waterGlassesFilled;
+  final void Function(int index) onWaterGlassTap;
 
   @override
   Widget build(BuildContext context) {
-    const consumed = 1840;
-    const goal = 2200;
-    const frac = consumed / goal;
+    final frac = goal <= 0 ? 0.0 : consumed / goal;
+    final pGoal = proteinG.toDouble();
+    final cGoal = carbsG.toDouble();
+    final fGoal = fatsG.toDouble();
+    final pCur = proteinCur;
+    final cCur = carbsCur;
+    final fCur = fatCur;
 
-    const pCur = 120.0;
-    const pGoal = 160.0;
-    const cCur = 210.0;
-    const cGoal = 280.0;
-    const fCur = 65.0;
-    const fGoal = 80.0;
-
-    const glassesFilled = 6;
     const glassesTotal = 8;
+    final glassesFilled = waterGlassesFilled.clamp(0, glassesTotal);
 
     return Container(
       width: double.infinity,
@@ -395,10 +547,14 @@ class _DailySummaryCard extends StatelessWidget {
                   final filled = i < glassesFilled;
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(
-                      Icons.water_drop_rounded,
-                      size: 28,
-                      color: filled ? _kGreen : _kTrack,
+                    child: InkWell(
+                      onTap: () => onWaterGlassTap(i),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Icon(
+                        Icons.water_drop_rounded,
+                        size: 28,
+                        color: filled ? _kGreen : _kTrack,
+                      ),
                     ),
                   );
                 }),
@@ -692,11 +848,21 @@ class _LogCheckbox extends StatelessWidget {
   }
 }
 
-class _PlanFooterCard extends StatelessWidget {
-  const _PlanFooterCard();
+class _PlanFooterCard extends ConsumerWidget {
+  const _PlanFooterCard({required this.trainerName, required this.planTitle});
+
+  final String trainerName;
+  final String planTitle;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final canMessageTrainer = ref.watch(memberCanUseChatProvider);
+    final now = DateTime.now();
+    final end = DateTime(now.year, now.month + 1, 0);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final validLabel =
+        '${months[now.month - 1]} ${now.day} – ${months[end.month - 1]} ${end.day}, ${end.year}';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -708,30 +874,22 @@ class _PlanFooterCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Plan assigned by: Arjun Sharma (Trainer)',
+            '$planTitle · assigned by $trainerName',
             style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primaryText, height: 1.35),
           ),
           const SizedBox(height: 8),
           Text(
-            'Plan valid: Jun 1 – Jun 30',
+            'Valid: $validLabel',
             style: GoogleFonts.inter(fontSize: 13, color: AppColors.secondaryText),
           ),
-          const SizedBox(height: 16),
-          FitCoreButton(
-            label: 'Message Trainer',
-            variant: FitCoreButtonVariant.secondary,
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Messaging opens here.',
-                    style: GoogleFonts.inter(color: AppColors.primaryText),
-                  ),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-          ),
+          if (canMessageTrainer) ...[
+            const SizedBox(height: 16),
+            FitCoreButton(
+              label: 'Message Trainer',
+              variant: FitCoreButtonVariant.secondary,
+              onPressed: () => context.push('/member/messages'),
+            ),
+          ],
         ],
       ),
     );

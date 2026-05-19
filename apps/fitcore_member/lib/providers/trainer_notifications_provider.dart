@@ -25,7 +25,7 @@ class TrainerNotificationsState {
 class TrainerNotificationsNotifier extends Notifier<TrainerNotificationsState> {
   @override
   TrainerNotificationsState build() {
-    ref.listen(trainerProvider, (_, __) => _rebuild());
+    ref.listen(trainerProvider, (_, _) => _rebuild());
     return _buildState();
   }
 

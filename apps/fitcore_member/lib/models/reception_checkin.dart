@@ -46,6 +46,7 @@ class ReceptionCheckInRecord {
     required this.timeLabel,
     required this.method,
     required this.action,
+    required this.recordedAt,
     this.phone,
     this.checkInTimeLabel,
   });
@@ -56,6 +57,7 @@ class ReceptionCheckInRecord {
   final String timeLabel;
   final CheckInMethod method;
   final AttendanceAction action;
+  final DateTime recordedAt;
   final String? phone;
   final String? checkInTimeLabel;
 
@@ -69,6 +71,7 @@ class ReceptionCheckInRecord {
     String? timeLabel,
     CheckInMethod? method,
     AttendanceAction? action,
+    DateTime? recordedAt,
     String? phone,
     String? checkInTimeLabel,
     bool clearCheckInTimeLabel = false,
@@ -80,6 +83,7 @@ class ReceptionCheckInRecord {
       timeLabel: timeLabel ?? this.timeLabel,
       method: method ?? this.method,
       action: action ?? this.action,
+      recordedAt: recordedAt ?? this.recordedAt,
       phone: phone ?? this.phone,
       checkInTimeLabel: clearCheckInTimeLabel ? null : (checkInTimeLabel ?? this.checkInTimeLabel),
     );

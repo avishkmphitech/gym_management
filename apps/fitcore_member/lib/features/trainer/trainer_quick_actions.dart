@@ -77,6 +77,13 @@ class TrainerQuickActions extends StatelessWidget {
             onTap: () => context.push('/trainer/schedule/create'),
           ),
         ),
+        const SizedBox(height: 10),
+        _ActionTile(
+          icon: Icons.chat_bubble_outline,
+          label: 'Member messages',
+          fullWidth: true,
+          onTap: () => context.push('/trainer/messages'),
+        ),
       ],
     );
   }

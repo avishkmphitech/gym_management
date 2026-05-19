@@ -110,16 +110,35 @@ class AuthService extends StateNotifier<UserModel?> {
     }
   }
 
+  static const mockOtpCode = '123456';
+
+  static const _knownEmails = {
+    'member@fitcore.com',
+    'trainer@fitcore.com',
+    'reception@fitcore.com',
+  };
+
+  Future<bool> _passwordMatches(String normalized, String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    final custom = prefs.getString(StorageKeys.mockPasswordKey(normalized));
+    if (custom != null) return password == custom;
+    return password == '123456';
+  }
+
   Future<UserModel> login(String email, String password) async {
     await Future<void>.delayed(const Duration(milliseconds: 1500));
 
     final normalized = email.trim().toLowerCase();
+    if (!await _passwordMatches(normalized, password)) {
+      throw AuthException('Invalid email or password');
+    }
+
     UserModel? user;
-    if (normalized == 'member@fitcore.com' && password == '123456') {
+    if (normalized == 'member@fitcore.com') {
       user = _userMember(_mockToken('member'));
-    } else if (normalized == 'trainer@fitcore.com' && password == '123456') {
+    } else if (normalized == 'trainer@fitcore.com') {
       user = _userTrainer(_mockToken('trainer'));
-    } else if (normalized == 'reception@fitcore.com' && password == '123456') {
+    } else if (normalized == 'reception@fitcore.com') {
       user = _userReceptionist(_mockToken('reception'));
     } else {
       throw AuthException('Invalid email or password');
@@ -153,6 +172,70 @@ class AuthService extends StateNotifier<UserModel?> {
     await prefs.setString(StorageKeys.authToken, user.token);
     await prefs.setString(StorageKeys.authUserJson, user.toJsonString());
     state = user;
+  }
+
+  /// Mock profile update — persists to SharedPreferences.
+  Future<void> updateProfile({String? name, String? email}) async {
+    final current = state;
+    if (current == null) return;
+    final updated = current.copyWith(
+      name: name ?? current.name,
+      email: email ?? current.email,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(StorageKeys.authUserJson, updated.toJsonString());
+    state = updated;
+  }
+
+  Future<void> sendPasswordResetOtp(String email) async {
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    final normalized = email.trim().toLowerCase();
+    if (!_knownEmails.contains(normalized)) {
+      throw AuthException('No account found for this email');
+    }
+  }
+
+  Future<void> verifyPasswordResetOtp(String email, String otp) async {
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    if (otp.trim() != mockOtpCode) {
+      throw AuthException('Invalid or expired OTP');
+    }
+    final normalized = email.trim().toLowerCase();
+    if (!_knownEmails.contains(normalized)) {
+      throw AuthException('No account found for this email');
+    }
+  }
+
+  Future<void> resetPassword({required String email, required String newPassword}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    if (newPassword.length < 6) {
+      throw AuthException('Password must be at least 6 characters');
+    }
+    final normalized = email.trim().toLowerCase();
+    if (!_knownEmails.contains(normalized)) {
+      throw AuthException('No account found for this email');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(StorageKeys.mockPasswordKey(normalized), newPassword);
+  }
+
+  /// Invitation / first-login setup (gym-created account).
+  Future<void> completeInvitationSetup({
+    required String email,
+    required String password,
+    required String fullName,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 1000));
+    final normalized = email.trim().toLowerCase();
+    if (!_knownEmails.contains(normalized)) {
+      throw AuthException('Invalid invitation. Use a demo gym email.');
+    }
+    if (password.length < 6) {
+      throw AuthException('Password must be at least 6 characters');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(StorageKeys.mockPasswordKey(normalized), password);
+    await prefs.remove(StorageKeys.pendingInviteEmail);
   }
 
   Future<void> logout() async {

@@ -249,7 +249,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            onPressed: () {},
+                            onPressed: () => context.push('/forgot-password'),
                             style: TextButton.styleFrom(
                               foregroundColor: const Color(0xFF3E7C59),
                               padding: EdgeInsets.zero,
@@ -352,6 +352,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 32),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: TextButton(
+                      onPressed: () => context.push('/auth/invite'),
+                      child: Text(
+                        'Invited by your gym? Set up your account',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryAccent,
+                        ),
+                      ),
+                    ),
+                  ),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 24),
                     child: Text(

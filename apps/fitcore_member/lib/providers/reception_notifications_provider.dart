@@ -28,7 +28,7 @@ class ReceptionNotificationsState {
 class ReceptionNotificationsNotifier extends Notifier<ReceptionNotificationsState> {
   @override
   ReceptionNotificationsState build() {
-    ref.listen(receptionAttendanceProvider, (_, __) => _rebuild());
+    ref.listen(receptionAttendanceProvider, (_, _) => _rebuild());
     return _buildState();
   }
 

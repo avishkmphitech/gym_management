@@ -71,6 +71,13 @@ class TrainerMemberDetailScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          FitCoreButton(
+            label: 'Message member',
+            variant: FitCoreButtonVariant.secondary,
+            icon: Icons.chat_bubble_outline,
+            onPressed: () => context.push('/trainer/messages/$memberId'),
+          ),
           if (progress != null) ...[
             const SizedBox(height: 20),
             TrainerMemberProgressPanel(progress: progress),

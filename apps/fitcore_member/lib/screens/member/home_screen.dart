@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/tokens/app_colors.dart';
+import '../../core/widgets/fitcore_button.dart';
+import '../../providers/chat_provider.dart';
+import '../../providers/member_provider.dart';
+import '../../services/auth_service.dart';
+import '../../providers/member_notifications_provider.dart';
+import '../../features/member/member_weekly_progress_card.dart';
+import '../../widgets/member_phase_viewport.dart';
+import '../../widgets/notification_bell_button.dart';
 import '../../widgets/role_guard.dart';
 
 /// Member home dashboard — MEMBER role only ([RoleGuard]).
@@ -17,21 +26,27 @@ class HomeScreen extends ConsumerWidget {
       child: Scaffold(
         backgroundColor: AppColors.primaryBg,
         body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            children: [
-              const _TopBar(),
-              const SizedBox(height: 20),
-              const _QuickStatsRow(),
-              const SizedBox(height: 20),
-              const _MembershipCard(),
-              const SizedBox(height: 16),
-              const _TodaysWorkoutCard(),
-              const SizedBox(height: 16),
-              const _NutritionCard(),
-              const SizedBox(height: 20),
-              const _RecentAttendanceSection(),
-            ],
+          child: MemberPhaseViewport(
+            expandChild: true,
+            emptyMessage: 'Your dashboard has no content for this preview state.',
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              children: [
+                const _TopBar(),
+                const SizedBox(height: 20),
+                const _QuickStatsRow(),
+                const SizedBox(height: 20),
+                const _MembershipCard(),
+                const SizedBox(height: 16),
+                const _TodaysWorkoutCard(),
+                const SizedBox(height: 16),
+                const _NutritionCard(),
+                const SizedBox(height: 20),
+                _WeeklyProgressSection(),
+                const SizedBox(height: 20),
+                const _RecentAttendanceSection(),
+              ],
+            ),
           ),
         ),
       ),
@@ -67,17 +82,22 @@ class _AccessDenied extends StatelessWidget {
   }
 }
 
-class _TopBar extends StatelessWidget {
+class _TopBar extends ConsumerWidget {
   const _TopBar();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authServiceProvider);
+    final first = memberGreetingName(user?.name);
+    final initials = memberInitials(user?.name);
+    final unread = ref.watch(memberUnreadNotificationsCountProvider);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Text(
-            'Good Morning, Rahul 👋',
+            '${timeGreeting()}, $first 👋',
             style: GoogleFonts.poppins(
               fontSize: 20,
               fontWeight: FontWeight.w600,
@@ -86,39 +106,20 @@ class _TopBar extends StatelessWidget {
             ),
           ),
         ),
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            IconButton(
-              onPressed: () {},
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-              icon: const Icon(Icons.notifications_outlined, color: AppColors.primaryText, size: 26),
-            ),
-            Positioned(
-              right: 6,
-              top: 6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '3',
-                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
+        NotificationBellButton(
+          unreadCount: unread,
+          onTap: () => context.push('/member/notifications'),
         ),
         const SizedBox(width: 4),
-        const CircleAvatar(
-          radius: 22,
-          backgroundColor: Color(0xFF3E7C59),
-          child: Text(
-            'RS',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+        GestureDetector(
+          onTap: () => context.go('/member/profile'),
+          child: CircleAvatar(
+            radius: 22,
+            backgroundColor: const Color(0xFF3E7C59),
+            child: Text(
+              initials,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+            ),
           ),
         ),
       ],
@@ -126,24 +127,51 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-class _QuickStatsRow extends StatelessWidget {
+class _WeeklyProgressSection extends ConsumerWidget {
+  const _WeeklyProgressSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final analytics = ref.watch(memberWeeklyAnalyticsProvider);
+    return MemberWeeklyProgressCard(analytics: analytics);
+  }
+}
+
+class _QuickStatsRow extends ConsumerWidget {
   const _QuickStatsRow();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final membership = ref.watch(memberMembershipProvider);
+    final progress = ref.watch(memberProgressProvider);
+    final month = DateTime.now();
+    final summary = ref.watch(memberMonthAttendanceSummaryProvider(month));
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final expiryLabel = '${months[membership.expiresAt.month - 1]} ${membership.expiresAt.day}';
+
     return SizedBox(
       height: 90,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.zero,
-        children: const [
-          _StatCard(icon: '🔥', label: 'Days Active', value: '18 days', valueColor: AppColors.primaryAccent),
-          SizedBox(width: 12),
-          _StatCard(icon: '📅', label: 'This Month', value: '24 sessions', valueColor: AppColors.primaryText),
-          SizedBox(width: 12),
-          _StatCard(icon: '⭐', label: 'My Plan', value: 'Monthly Pro', valueColor: AppColors.secondaryAccent),
-          SizedBox(width: 12),
-          _StatCard(icon: '⏰', label: 'Expires', value: 'Jun 30', valueColor: AppColors.warning),
+        children: [
+          _StatCard(
+            icon: '🔥',
+            label: 'Attendance',
+            value: '${progress?.attendancePercent ?? summary.present}%',
+            valueColor: AppColors.primaryAccent,
+          ),
+          const SizedBox(width: 12),
+          _StatCard(
+            icon: '📅',
+            label: 'This Month',
+            value: '${summary.present} check-ins',
+            valueColor: AppColors.primaryText,
+          ),
+          const SizedBox(width: 12),
+          _StatCard(icon: '⭐', label: 'My Plan', value: membership.tier, valueColor: AppColors.secondaryAccent),
+          const SizedBox(width: 12),
+          _StatCard(icon: '⏰', label: 'Expires', value: expiryLabel, valueColor: AppColors.warning),
         ],
       ),
     );
@@ -196,11 +224,15 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _MembershipCard extends StatelessWidget {
+class _MembershipCard extends ConsumerWidget {
   const _MembershipCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final membership = ref.watch(memberMembershipProvider);
+    final canMessageTrainer = ref.watch(memberCanUseChatProvider);
+    final progress = membership.progressFraction;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -215,7 +247,7 @@ class _MembershipCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Monthly Pro Plan',
+                  membership.planLabel,
                   style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryText),
                 ),
               ),
@@ -227,17 +259,22 @@ class _MembershipCard extends StatelessWidget {
                   border: Border.all(color: AppColors.success.withValues(alpha: 0.5)),
                 ),
                 child: Text(
-                  'Active',
+                  membership.status,
                   style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.success),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Text(
+            '${membership.gymName} · ID ${membership.memberDeskId}',
+            style: GoogleFonts.inter(fontSize: 12, color: AppColors.secondaryText),
+          ),
           const SizedBox(height: 14),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
-              value: 0.65,
+              value: progress,
               minHeight: 8,
               backgroundColor: const Color(0xFF444444),
               valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF3E7C59)),
@@ -245,37 +282,27 @@ class _MembershipCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '18 of 30 days remaining',
+            '${membership.daysRemaining} of ${membership.daysTotal} days remaining',
             style: GoogleFonts.inter(fontSize: 12, color: AppColors.secondaryText),
           ),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Text(
-                  'Trainer: Arjun Sharma',
-                  style: GoogleFonts.inter(fontSize: 14, color: AppColors.primaryText),
-                ),
-              ),
-              TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.primaryAccent,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'Renew Now',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryAccent,
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(height: 12),
+          Text(
+            'Trainer: ${membership.trainerName}',
+            style: GoogleFonts.inter(fontSize: 14, color: AppColors.primaryText),
+          ),
+          if (canMessageTrainer) ...[
+            const SizedBox(height: 12),
+            FitCoreButton(
+              label: 'Message trainer',
+              variant: FitCoreButtonVariant.secondary,
+              icon: Icons.chat_bubble_outline,
+              onPressed: () => context.push('/member/messages'),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            'Renewals are updated by reception at the desk — not in this app.',
+            style: GoogleFonts.inter(fontSize: 12, color: AppColors.secondaryText, height: 1.35),
           ),
         ],
       ),
@@ -283,11 +310,26 @@ class _MembershipCard extends StatelessWidget {
   }
 }
 
-class _TodaysWorkoutCard extends StatelessWidget {
+class _TodaysWorkoutCard extends ConsumerWidget {
   const _TodaysWorkoutCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final plan = ref.watch(memberWeeklyWorkoutPlanProvider);
+    final todayIndex = DateTime.now().weekday - 1;
+    final day = plan?.days[todayIndex.clamp(0, 6)];
+    final title = day?.isRestDay == true
+        ? (day?.title ?? 'Rest day')
+        : (day?.title ?? plan?.name ?? 'No workout assigned');
+    final subtitle = day?.isRestDay == true
+        ? (day?.focus ?? 'Recovery')
+        : '${day?.durationMin ?? 0} mins · ${day?.exercises.length ?? 0} exercises';
+    final isRest = day?.isRestDay ?? true;
+    final chips = isRest
+        ? <String>['Rest', 'Recovery']
+        : (day?.exercises.take(3).map((e) => e.name).toList() ?? <String>[]);
+    final extraCount = (!isRest && day != null && day.exercises.length > 3) ? day.exercises.length - 3 : 0;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -307,7 +349,7 @@ class _TodaysWorkoutCard extends StatelessWidget {
                 ),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: () => context.go('/member/workouts'),
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF3E7C59),
                   padding: EdgeInsets.zero,
@@ -327,18 +369,21 @@ class _TodaysWorkoutCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Upper Body Blast — 45 mins',
+            subtitle,
             style: GoogleFonts.inter(fontSize: 14, color: AppColors.secondaryText),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.primaryText),
           ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              _workoutChip('Bench Press'),
-              _workoutChip('Shoulder Press'),
-              _workoutChip('Pull-ups'),
-              _workoutChip('+3 more'),
+              for (final c in chips) _workoutChip(c),
+              if (extraCount > 0) _workoutChip('+$extraCount more'),
             ],
           ),
           const SizedBox(height: 16),
@@ -346,7 +391,7 @@ class _TodaysWorkoutCard extends StatelessWidget {
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: (plan == null || isRest) ? null : () => context.go('/member/workouts'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3E7C59),
                 foregroundColor: Colors.white,
@@ -374,11 +419,16 @@ Widget _workoutChip(String label) {
   );
 }
 
-class _NutritionCard extends StatelessWidget {
+class _NutritionCard extends ConsumerWidget {
   const _NutritionCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final diet = ref.watch(memberDietPlanProvider);
+    final goal = diet?.computedCalories ?? 2200;
+    final protein = diet?.proteinG ?? 160;
+    final consumedEst = (goal * 0.84).round();
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -398,7 +448,7 @@ class _NutritionCard extends StatelessWidget {
                 ),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: () => context.go('/member/diet'),
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF3E7C59),
                   padding: EdgeInsets.zero,
@@ -416,13 +466,20 @@ class _NutritionCard extends StatelessWidget {
               ),
             ],
           ),
+          if (diet != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              diet.title,
+              style: GoogleFonts.inter(fontSize: 14, color: AppColors.secondaryText),
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: _MacroMini(
                   label: 'Calories',
-                  value: '1840/2200 kcal',
+                  value: '$consumedEst/$goal kcal',
                   color: AppColors.secondaryAccent,
                 ),
               ),
@@ -430,7 +487,7 @@ class _NutritionCard extends StatelessWidget {
               Expanded(
                 child: _MacroMini(
                   label: 'Protein',
-                  value: '120/160g',
+                  value: '${(protein * 0.75).round()}/$protein g',
                   color: AppColors.primaryAccent,
                 ),
               ),
@@ -485,17 +542,14 @@ class _MacroMini extends StatelessWidget {
   }
 }
 
-class _RecentAttendanceSection extends StatelessWidget {
+class _RecentAttendanceSection extends ConsumerWidget {
   const _RecentAttendanceSection();
 
-  static const _entries = [
-    _AttendanceRow(date: 'May 12, 2026', gym: 'PowerFit Gym', time: '6:42 AM'),
-    _AttendanceRow(date: 'May 11, 2026', gym: 'PowerFit Gym', time: '7:05 AM'),
-    _AttendanceRow(date: 'May 10, 2026', gym: 'PowerFit Gym', time: '6:38 AM'),
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final entries = ref.watch(memberRecentCheckInsProvider);
+    final gym = ref.watch(memberMembershipProvider).gymName;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -508,7 +562,7 @@ class _RecentAttendanceSection extends StatelessWidget {
               ),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () => context.go('/member/attendance'),
               style: TextButton.styleFrom(
                 foregroundColor: const Color(0xFF3E7C59),
                 padding: EdgeInsets.zero,
@@ -534,11 +588,24 @@ class _RecentAttendanceSection extends StatelessWidget {
           ),
           child: Column(
             children: [
-              for (var i = 0; i < _entries.length; i++) ...[
+              if (entries.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'No check-ins yet. Generate QR on the Attendance tab.',
+                    style: GoogleFonts.inter(fontSize: 13, color: AppColors.secondaryText),
+                  ),
+                )
+              else
+              for (var i = 0; i < entries.length; i++) ...[
                 if (i > 0) const Divider(height: 1, color: AppColors.border),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  child: _entries[i],
+                  child: _AttendanceRow(
+                    date: entries[i].title,
+                    gym: gym,
+                    time: entries[i].subtitle,
+                  ),
                 ),
               ],
             ],

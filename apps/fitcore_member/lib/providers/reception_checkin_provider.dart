@@ -70,7 +70,10 @@ abstract final class ReceptionMemberDirectory {
 
   static String memberIdForMemberUser(String? userName) {
     if (userName == null) return defaultMemberId;
-    final lower = userName.toLowerCase();
+    final lower = userName.toLowerCase().trim();
+    for (final m in members) {
+      if (m.memberName.toLowerCase() == lower) return m.memberId;
+    }
     for (final m in members) {
       if (lower.contains(m.memberName.split(' ').first.toLowerCase())) {
         return m.memberId;
@@ -96,7 +99,7 @@ class ReceptionCheckInNotifier extends StateNotifier<ReceptionAttendanceState> {
   ReceptionCheckInNotifier()
       : super(
           ReceptionAttendanceState(
-            log: const [
+            log: [
               ReceptionCheckInRecord(
                 id: 'log_seed_1',
                 memberId: 'M-20481',
@@ -104,6 +107,7 @@ class ReceptionCheckInNotifier extends StateNotifier<ReceptionAttendanceState> {
                 timeLabel: '6:42 AM',
                 method: CheckInMethod.qr,
                 action: AttendanceAction.checkIn,
+                recordedAt: DateTime.now().subtract(const Duration(days: 1)),
               ),
               ReceptionCheckInRecord(
                 id: 'log_seed_2',
@@ -113,6 +117,7 @@ class ReceptionCheckInNotifier extends StateNotifier<ReceptionAttendanceState> {
                 method: CheckInMethod.phone,
                 action: AttendanceAction.checkIn,
                 phone: '9123456780',
+                recordedAt: DateTime.now().subtract(const Duration(days: 1)),
               ),
             ],
             activeSessions: {
@@ -207,6 +212,7 @@ class ReceptionCheckInNotifier extends StateNotifier<ReceptionAttendanceState> {
         timeLabel: time,
         method: method,
         action: AttendanceAction.checkOut,
+        recordedAt: DateTime.now(),
         phone: phone,
         checkInTimeLabel: session.checkInTimeLabel,
       );
@@ -227,6 +233,7 @@ class ReceptionCheckInNotifier extends StateNotifier<ReceptionAttendanceState> {
       timeLabel: time,
       method: method,
       action: AttendanceAction.checkIn,
+      recordedAt: DateTime.now(),
       phone: phone,
     );
     // checkedInAt stored on active session below via deriveActiveSessions

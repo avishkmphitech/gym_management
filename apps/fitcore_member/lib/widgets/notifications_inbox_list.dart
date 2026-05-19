@@ -23,7 +23,11 @@ class NotificationsInboxList extends StatelessWidget {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(emptyMessage, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
+          child: Text(
+            emptyMessage,
+            style: Theme.of(context).textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
@@ -31,7 +35,7 @@ class NotificationsInboxList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(20),
       itemCount: notifications.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final n = notifications[i];
         return Material(
@@ -55,8 +59,11 @@ class NotificationsInboxList extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 n.title,
-                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                      fontWeight: n.read ? FontWeight.w500 : FontWeight.w700,
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
+                                      fontWeight: n.read
+                                          ? FontWeight.w500
+                                          : FontWeight.w700,
                                     ),
                               ),
                             ),
@@ -72,9 +79,15 @@ class NotificationsInboxList extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(n.body, style: Theme.of(context).textTheme.bodyMedium),
+                        Text(
+                          n.body,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
                         const SizedBox(height: 6),
-                        Text(n.timeLabel, style: Theme.of(context).textTheme.bodySmall),
+                        Text(
+                          n.timeLabel,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
                     ),
                   ),
