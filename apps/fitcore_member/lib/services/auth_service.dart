@@ -41,6 +41,8 @@ UserModel _userTrainer(String token) {
     permissions: const [
       'members:read',
       'plans:write',
+      'diet:read',
+      'diet:write',
       'schedule:read',
       'schedule:write',
       'profile:read',
@@ -68,6 +70,15 @@ UserModel _userReceptionist(String token) {
   );
 }
 
+/// Keeps trainer meal-plan actions working for sessions saved before [diet:write] existed.
+UserModel _ensureTrainerPermissions(UserModel user) {
+  if (user.role != 'TRAINER') return user;
+  const required = ['members:read', 'plans:write', 'diet:read', 'diet:write', 'schedule:read', 'schedule:write'];
+  final merged = {...user.permissions, ...required}.toList();
+  if (merged.length == user.permissions.length) return user;
+  return user.copyWith(permissions: merged);
+}
+
 class AuthService extends StateNotifier<UserModel?> {
   AuthService() : super(null);
 
@@ -89,7 +100,8 @@ class AuthService extends StateNotifier<UserModel?> {
     }
     try {
       final map = jsonDecode(raw) as Map<String, dynamic>;
-      final user = UserModel.fromJson(map).copyWith(token: token);
+      var user = UserModel.fromJson(map).copyWith(token: token);
+      user = _ensureTrainerPermissions(user);
       state = user;
     } catch (_) {
       state = null;

@@ -91,8 +91,11 @@ class ActiveMemberSession {
   const ActiveMemberSession({
     required this.memberId,
     required this.checkInTimeLabel,
+    required this.checkedInAt,
   });
 
   final String memberId;
   final String checkInTimeLabel;
+  /// Used for overstay alerts when checkout is missing (e.g. > 23 hours).
+  final DateTime checkedInAt;
 }

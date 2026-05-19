@@ -15,7 +15,7 @@ void main() {
 class FitCoreMemberApp extends ConsumerStatefulWidget {
   const FitCoreMemberApp({super.key});
 
-  @override
+  @override 
   ConsumerState<FitCoreMemberApp> createState() => _FitCoreMemberAppState();
 }
 

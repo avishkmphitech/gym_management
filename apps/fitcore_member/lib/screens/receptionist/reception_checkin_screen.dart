@@ -7,6 +7,8 @@ import '../../core/widgets/fitcore_card.dart';
 import '../../models/reception_checkin.dart';
 import '../../providers/reception_checkin_provider.dart';
 import '../../widgets/reception_attendance_log_tile.dart';
+import '../../providers/reception_notifications_provider.dart';
+import '../../widgets/notification_bell_button.dart';
 import '../../widgets/reception_checkin_success_sheet.dart';
 
 Future<void> _openQrAttendance(BuildContext context) async {
@@ -31,9 +33,18 @@ class ReceptionCheckInScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final log = ref.watch(receptionCheckInsProvider);
     final activeCount = ref.watch(receptionAttendanceProvider).activeSessions.length;
+    final unread = ref.watch(receptionNotificationsProvider).unreadCount;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Check-in')),
+      appBar: AppBar(
+        title: const Text('Check-in'),
+        actions: [
+          NotificationBellButton(
+            unreadCount: unread,
+            onTap: () => context.push('/receptionist/notifications'),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [

@@ -115,9 +115,17 @@ class ReceptionCheckInNotifier extends StateNotifier<ReceptionAttendanceState> {
                 phone: '9123456780',
               ),
             ],
-            activeSessions: const {
-              'M-20481': ActiveMemberSession(memberId: 'M-20481', checkInTimeLabel: '6:42 AM'),
-              'M-20102': ActiveMemberSession(memberId: 'M-20102', checkInTimeLabel: '6:38 AM'),
+            activeSessions: {
+              'M-20481': ActiveMemberSession(
+                memberId: 'M-20481',
+                checkInTimeLabel: 'Yesterday · 7:00 AM',
+                checkedInAt: DateTime.now().subtract(const Duration(hours: 25)),
+              ),
+              'M-20102': ActiveMemberSession(
+                memberId: 'M-20102',
+                checkInTimeLabel: 'Today · 6:38 AM',
+                checkedInAt: DateTime.now().subtract(const Duration(hours: 2)),
+              ),
             },
           ),
         );
@@ -159,12 +167,20 @@ class ReceptionCheckInNotifier extends StateNotifier<ReceptionAttendanceState> {
         sessions[entry.memberId] = ActiveMemberSession(
           memberId: entry.memberId,
           checkInTimeLabel: entry.timeLabel,
+          checkedInAt: parseTimeLabel(entry.timeLabel) != null
+              ? _dateTimeFromTodayTime(parseTimeLabel(entry.timeLabel)!)
+              : DateTime.now(),
         );
       } else {
         sessions.remove(entry.memberId);
       }
     }
     return sessions;
+  }
+
+  static DateTime _dateTimeFromTodayTime(TimeOfDay time) {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day, time.hour, time.minute);
   }
 
   void _applyLog(List<ReceptionCheckInRecord> log) {
@@ -213,6 +229,7 @@ class ReceptionCheckInNotifier extends StateNotifier<ReceptionAttendanceState> {
       action: AttendanceAction.checkIn,
       phone: phone,
     );
+    // checkedInAt stored on active session below via deriveActiveSessions
     _applyLog([record, ...state.log]);
     return AttendanceToggleResult(
       member: member,

@@ -8,6 +8,6 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: FitCoreMemberApp()));
     await tester.pump();
     expect(find.textContaining('FitCore'), findsWidgets);
-    await tester.pump(const Duration(milliseconds: 2600));
+    await tester.pump(const Duration(milliseconds: 3900));
   });
 }

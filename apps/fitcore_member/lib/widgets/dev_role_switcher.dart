@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import '../router/app_router.dart';
 import '../services/auth_service.dart';
 
 /// Debug-only floating control to swap mock role and navigate to the role home.
@@ -35,7 +35,7 @@ class DevRoleSwitcher extends ConsumerWidget {
       borderRadius: BorderRadius.circular(12),
       color: const Color(0xFF2B2B2B),
       child: InkWell(
-        onTap: () => _openSheet(context, ref),
+        onTap: () => _openSheet(ref),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -59,9 +59,12 @@ class DevRoleSwitcher extends ConsumerWidget {
     );
   }
 
-  Future<void> _openSheet(BuildContext context, WidgetRef ref) async {
+  Future<void> _openSheet(WidgetRef ref) async {
+    final navContext = rootNavigatorKey.currentContext;
+    if (navContext == null) return;
+
     await showModalBottomSheet<void>(
-      context: context,
+      context: navContext,
       backgroundColor: const Color(0xFF222222),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -97,9 +100,7 @@ class DevRoleSwitcher extends ConsumerWidget {
       onTap: () async {
         Navigator.of(sheetContext).pop();
         await ref.read(authServiceProvider.notifier).setMockUserForRole(role);
-        if (sheetContext.mounted) {
-          sheetContext.go(homeForRole(role));
-        }
+        ref.read(memberRouterProvider).go(homeForRole(role));
       },
     );
   }

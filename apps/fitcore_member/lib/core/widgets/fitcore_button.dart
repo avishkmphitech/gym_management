@@ -52,19 +52,24 @@ class FitCoreButton extends StatelessWidget {
 
     final child = Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: MainAxisSize.max,
       children: [
         if (icon != null) ...[
           Icon(icon, size: 18, color: fg),
           const SizedBox(width: 8),
         ],
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: fg,
-                fontWeight: FontWeight.w600,
-                fontSize: fontSize,
-              ),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w600,
+                  fontSize: fontSize,
+                ),
+          ),
         ),
       ],
     );

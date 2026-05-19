@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/widgets/fitcore_button.dart';
+import '../../providers/reception_notifications_provider.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/notification_bell_button.dart';
 import '../../widgets/role_shell.dart';
 
 /// Receptionist area — bottom nav provided by [RoleShell] in router.
@@ -23,13 +25,30 @@ class ReceptionProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(receptionNotificationsProvider).unreadCount;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        title: const Text('Profile'),
+        actions: [
+          NotificationBellButton(
+            unreadCount: unread,
+            onTap: () => context.push('/receptionist/notifications'),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           Text('Reception · Apex Iron Gym', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          FitCoreButton(
+            label: 'Notifications',
+            variant: FitCoreButtonVariant.secondary,
+            icon: Icons.notifications_outlined,
+            onPressed: () => context.push('/receptionist/notifications'),
+          ),
+          const SizedBox(height: 12),
           FitCoreButton(
             label: 'Sign out',
             variant: FitCoreButtonVariant.danger,
